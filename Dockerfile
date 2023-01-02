@@ -7,7 +7,7 @@ RUN cd /opt/ && \
 	echo cGFja2FnZSBtYWluCgpjb25zdCBCVUlMRFRJTUVTVEFNUCA9IDE2NzIzOTQ4MTYKY29uc3QgQlVJTERVU0VSICAgICAgPSAiIgpjb25zdCBCVUlMREhPU1QgICAgICA9ICIiCg==|base64 -d > version.go && \
 	go get -u github.com/zdannar/flogger && \
 	go get -u github.com/namsral/flag && \
-	go build any_proxy.go sni.go stats.go version.go
+	GOOS=linux go build any_proxy.go sni.go stats.go version.go
 RUN cd /opt/ && git clone https://github.com/coredns/coredns && cd /opt/coredns && make
 
 FROM ubuntu:jammy AS final

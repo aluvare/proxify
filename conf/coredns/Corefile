@@ -1,0 +1,9 @@
+. {
+    bind 0.0.0.0
+    forward . 8.8.8.8 {
+      force_tcp
+    }
+    cache
+    log
+    errors
+}

@@ -1,7 +1,13 @@
 FROM ubuntu:jammy AS builder
 
 RUN DEBIAN_FRONTEND=noninteractive apt update && DEBIAN_FRONTEND=noninteractive DEBIAN_FRONTEND=noninteractive apt install gcc g++ make git golang-go -y
-RUN cd /opt/ && git clone https://github.com/ryanchapman/go-any-proxy.git && cd /opt/go-any-proxy && ./make.bash
+RUN cd /opt/ && \
+	git clone https://github.com/ryanchapman/go-any-proxy.git && \
+	cd /opt/go-any-proxy && \
+	echo cGFja2FnZSBtYWluCgpjb25zdCBCVUlMRFRJTUVTVEFNUCA9IDE2NzIzOTQ4MTYKY29uc3QgQlVJTERVU0VSICAgICAgPSAiIgpjb25zdCBCVUlMREhPU1QgICAgICA9ICIiCg==|base64 -d > version.go && \
+	go get -u github.com/zdannar/flogger && \
+	go get -u github.com/namsral/flag && \
+	go build any_proxy.go sni.go stats.go version.go
 RUN cd /opt/ && git clone https://github.com/coredns/coredns && cd /opt/coredns && make
 
 FROM ubuntu:jammy AS final

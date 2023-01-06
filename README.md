@@ -12,7 +12,36 @@ MyLogin:Password25@proxy.corporate.com:8080
 1.2.3.4:80,1.2.3.5:80,1.2.3.6:80
 ```
 
-Example:
+## Example
+
+First of all you need to create two wireguard files, one for the desktop and another one for the router:
+
+wg-kali.conf
+```
+[Interface]
+PrivateKey = yFhihHHIG9fpnQwqGQ0Z8cHcYGRjEUUMNLsFJf6m6EY=
+
+[Peer]
+PublicKey = Ge7VWCLVbc7mOCrVHEM/6Ubl4VFrAEdXDSJSOnMBfH8=
+Endpoint = ROUTER:51820
+AllowedIPs = 0.0.0.0/0
+```
+
+wg-router.conf
+```
+[Interface]
+Address = 192.168.200.1/24
+ListenPort = 51820
+PrivateKey = gMQcxdgRcwmi6FDzp07S1M5t7h1e0c8WoXGEfuOSLXk=
+
+[Peer]
+PublicKey = fUcwp4+hS/WPZjrvcjf7ArPy5uMys2sBJcf+2AGqlzg=
+AllowedIPs = 192.168.200.0/24
+```
+
+And also the docker-compose file.
+
+docker-compose.yml
 ```
 version: "2.3"
 services:
@@ -25,6 +54,13 @@ services:
       test: nc -vz 127.0.0.1 5900
     cap_add:
       - NET_ADMIN
+    volumes:
+     - /dev/net/tun:/dev/net/tun
+     - ./wg-kali.conf:/etc/wireguard/wg-template.conf:ro
+    environment:
+      - "PRECOMMAND=cmlwPSQoaG9zdCByb3V0ZXJ8YXdrICJ7cHJpbnQgXCRORn0iKTtzZWQgInMvUk9VVEVSLyR7cmlwfS9nIiAvZXRjL3dpcmVndWFyZC93Zy10ZW1wbGF0ZS5jb25mID4gL2V0Yy93aXJlZ3VhcmQvd2cuY29uZjt3aXJlZ3VhcmQtZ28gd2cgJiYgaXAgYWRkcmVzcyBhZGQgZGV2IHdnIDE5Mi4xNjguMjAwLjIvMjQgJiYgd2cgc2V0Y29uZiB3ZyAvZXRjL3dpcmVndWFyZC93Zy5jb25mICYmIGlwIGxpbmsgc2V0IHVwIGRldiB3ZztpcCByb3V0ZSBkZWxldGUgZGVmYXVsdDtpcCByb3V0ZSBhZGQgZGVmYXVsdCB2aWEgMTkyLjE2OC4yMDAuMTsgc2xlZXAgMTAgJiYgZWNobyBkMmhwYkdVZ2RISjFaVHRrYnlCbmNtVndJQ0p1WVcxbGMyVnlkbVZ5SWlBdlpYUmpMM0psYzI5c2RpNWpiMjVtSUh4M2FHbHNaU0J5WldGa0lHazdaRzhnSUdsbUlGdGJJQ0lrYVNJZ0lUMGdJakU1TWk0eE5qZ3VNakF3TGpFaUlGMWRPM1JvWlc0Z1pXTm9ieUFpYm1GdFpYTmxjblpsY2lBeE9USXVNVFk0TGpJd01DNHhJaUErSUM5bGRHTXZjbVZ6YjJ4MkxtTnZibVk3SUdacE95QmtiMjVsTzNOc1pXVndJREU3Wkc5dVpRbz18YmFzZTY0IC1kfGJhc2ggJgo="
+    depends_on:
+      - router
   novnc:
     image: ghcr.io/aluvare/easy-novnc/easy-novnc
     restart: always
@@ -36,15 +72,13 @@ services:
   router:
     image: ghcr.io/aluvare/proxify/proxify
     restart: always
-    privileged: true
     environment:
       - "PROXY_STRING=MyLogin:Password25@proxy.corporate.com:8080"
     cap_add:
       - NET_ADMIN
+    volumes:
+     - /dev/net/tun:/dev/net/tun
+     - ./wg-router.conf:/etc/wireguard/wg.conf:ro
 ```
 
-In the example to use the transparent proxy, you need to use your browser to 127.0.0.1:8080, open a shell in the kali desktop, and run:
-```
-sudo su -
-rip=$(host router|awk '{print $NF}') && ip route delete default && ip route add default via $rip && echo "nameserver $rip" >/etc/resolv.conf
-```
+And now, just open chrome (best for clipboard synchronization), and navigate to 127.0.0.1:8080

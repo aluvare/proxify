@@ -8,5 +8,8 @@ else
 	echo "You cannot work with this router if you dont have /etc/wireguard/wg.conf"
 	exit 1
 fi
+if [[ "$FORCE_SSL" != "" ]];then
+	sed -i "s/ -x=0/ -x=0 -allssl=1/g" /etc/supervisor/conf.d/redirector.conf
+fi
 ls /scripts/init-scripts|while read i;do bash /scripts/init-scripts/$i;done 
 supervisord

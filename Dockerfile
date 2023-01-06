@@ -5,12 +5,11 @@ ARG wg_tools_tag=v1.0.20210914
 
 RUN DEBIAN_FRONTEND=noninteractive apt update && DEBIAN_FRONTEND=noninteractive apt install gcc g++ make git golang-go -y
 RUN cd /opt/ && \
-	git clone https://github.com/ryanchapman/go-any-proxy.git && \
+	git clone https://github.com/aluvare/go-any-proxy.git && \
 	cd /opt/go-any-proxy && \
 	echo cGFja2FnZSBtYWluCgpjb25zdCBCVUlMRFRJTUVTVEFNUCA9IDE2NzIzOTQ4MTYKY29uc3QgQlVJTERVU0VSICAgICAgPSAiIgpjb25zdCBCVUlMREhPU1QgICAgICA9ICIiCg==|base64 -d > version.go && \
 	go get -u github.com/zdannar/flogger && \
 	go get -u github.com/namsral/flag && \
-	sed -i "s/headerXFF = fmt.Sprintf.*/headerXFF = \"\"/g" any_proxy.go && \
 	GOOS=linux go build any_proxy.go sni.go stats.go version.go
 
 RUN git clone https://git.zx2c4.com/wireguard-go && \

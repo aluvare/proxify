@@ -1,57 +1,19 @@
-*filter
-:INPUT DROP [0:0]
-:FORWARD DROP [0:0]
-:OUTPUT DROP [0:0]
--A INPUT -i eth0 -p tcp -m tcp --dport 12345 -j ACCEPT
--A INPUT -i lo -j ACCEPT
--A INPUT -d 127.0.0.0/8 ! -i lo -j REJECT --reject-with icmp-port-unreachable
--A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT
--A INPUT -p udp -m udp --dport 53 -j ACCEPT
--A INPUT -p tcp -m tcp --dport 53 -j ACCEPT
--A INPUT -j NFLOG --nflog-prefix  "[IPTABLES-INPUT] DROP " --nflog-group 1
--A INPUT -j REJECT --reject-with icmp-port-unreachable
--A FORWARD -j NFLOG --nflog-prefix  "[IPTABLES-FORWARD] DROP " --nflog-group 1
--A FORWARD -j REJECT --reject-with icmp-port-unreachable
--A OUTPUT -p tcp -m owner --uid-owner 1000 -j ACCEPT
--A OUTPUT -d 192.168.0.0/16 -p udp -m owner --uid-owner 0 --gid-owner 0 -m udp --dport 53 -j ACCEPT
--A OUTPUT -p tcp -m owner --uid-owner 1001 -m tcp --sport 53 -j ACCEPT
--A OUTPUT -p udp -m owner --uid-owner 1001 -m udp --sport 53 -j ACCEPT
--A OUTPUT -p tcp -m owner --uid-owner 1000 -m tcp --sport 53 -j ACCEPT
--A OUTPUT -p udp -m owner --uid-owner 1000 -m udp --dport 53 -j ACCEPT
--A OUTPUT -d 127.0.0.1/32 -o eth0 -p tcp -m tcp --dport 12345 -j ACCEPT
--A OUTPUT -o eth0 -p tcp -m tcp --sport 12345 -j ACCEPT
--A OUTPUT -o lo -j ACCEPT
--A OUTPUT -p tcp -m owner --uid-owner 1000 -j ACCEPT
--A OUTPUT -d 127.0.0.1/32 -p udp -m udp --dport 53 -m state --state NEW,ESTABLISHED -j ACCEPT
--A OUTPUT -d 127.0.0.1/32 -p tcp -m tcp --dport 53 -m state --state NEW,ESTABLISHED -j ACCEPT
--A OUTPUT -p icmp -j REJECT --reject-with icmp-port-unreachable
--A OUTPUT -j NFLOG --nflog-prefix  "[IPTABLES-OUTPUT] DROP " --nflog-group 1
--A OUTPUT -j REJECT --reject-with icmp-port-unreachable
-COMMIT
-*nat
-:PREROUTING ACCEPT [342:37672]
-:INPUT ACCEPT [310:24164]
-:OUTPUT ACCEPT [965:65837]
-:POSTROUTING ACCEPT [1145:76637]
-:PROXY - [0:0]
-#-A PREROUTING -j NFLOG --nflog-prefix  "[IPTABLES-PREROUTING] ALL " --nflog-group 1
--A PREROUTING -i eth0 -p tcp -j PROXY
-#-A OUTPUT -j NFLOG --nflog-prefix  "[IPTABLES-OUTPUT] ALL " --nflog-group 1
--A OUTPUT -p tcp -m owner --uid-owner 1000 -j ACCEPT
--A OUTPUT -p tcp -m owner --uid-owner 1001 -j PROXY
--A OUTPUT -d 127.0.0.1/32 -o eth0 -p tcp -m tcp --dport 12345 -j ACCEPT
--A OUTPUT -p tcp -m owner --uid-owner 1000 -m tcp --dport 12345 -j ACCEPT
--A OUTPUT -p tcp -m owner --uid-owner 1001 -m tcp --dport 12345 -j ACCEPT
-#-A PROXY -j NFLOG --nflog-prefix  "[IPTABLES-PROXY] ALL " --nflog-group 1
--A PROXY -d 0.0.0.0/8 -j RETURN
--A PROXY -d 10.0.0.0/8 -j RETURN
--A PROXY -d 100.64.0.0/10 -j RETURN
--A PROXY -d 127.0.0.0/8 -j RETURN
--A PROXY -d 169.254.0.0/16 -j RETURN
--A PROXY -d 172.16.0.0/12 -j RETURN
--A PROXY -d 192.168.0.0/16 -j RETURN
--A PROXY -d 198.18.0.0/15 -j RETURN
--A PROXY -d 224.0.0.0/4 -j RETURN
--A PROXY -d 240.0.0.0/4 -j RETURN
--A PROXY -p tcp -j REDIRECT --to-ports 12345
-COMMIT
+iptables -t nat -N PROXY
+iptables -t nat -A PROXY -d 0.0.0.0/8 -j RETURN
+iptables -t nat -A PROXY -d 10.0.0.0/8 -j RETURN
+iptables -t nat -A PROXY -d 100.64.0.0/10 -j RETURN
+iptables -t nat -A PROXY -d 127.0.0.0/8 -j RETURN
+iptables -t nat -A PROXY -d 169.254.0.0/16 -j RETURN
+iptables -t nat -A PROXY -d 172.16.0.0/12 -j RETURN
+iptables -t nat -A PROXY -d 192.168.0.0/16 -j RETURN
+iptables -t nat -A PROXY -d 198.18.0.0/15 -j RETURN
+iptables -t nat -A PROXY -d 224.0.0.0/4 -j RETURN
+iptables -t nat -A PROXY -d 240.0.0.0/4 -j RETURN
+iptables -t nat -A PROXY -p tcp -j REDIRECT --to-ports 12345
+iptables -t nat -A PREROUTING -i wg -p udp --dport 53 -j REDIRECT --to-ports 53
+iptables -t nat -A PREROUTING -i wg -p tcp --dport 53 -j REDIRECT --to-ports 53
+iptables -t nat -A PREROUTING -i wg -p tcp -m tcp --tcp-flags FIN,SYN,RST,ACK SYN -j PROXY
+iptables -t nat -A OUTPUT -p tcp -m owner --uid-owner 1001 -j PROXY
+iptables -A INPUT -i wg -m state --state ESTABLISHED,RELATED -j ACCEPT
+iptables -A INPUT -i wg -m udp -p udp ! --dport 53 -j DROP
+iptables -A INPUT -i wg -p icmp -j DROP

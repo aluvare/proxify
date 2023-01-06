@@ -1,33 +1,55 @@
 FROM ubuntu:jammy AS builder
 
-RUN DEBIAN_FRONTEND=noninteractive apt update && DEBIAN_FRONTEND=noninteractive DEBIAN_FRONTEND=noninteractive apt install gcc g++ make git golang-go -y
+ARG wg_go_tag=0.0.20220316
+ARG wg_tools_tag=v1.0.20210914
+
+RUN DEBIAN_FRONTEND=noninteractive apt update && DEBIAN_FRONTEND=noninteractive apt install gcc g++ make git golang-go -y
 RUN cd /opt/ && \
 	git clone https://github.com/ryanchapman/go-any-proxy.git && \
 	cd /opt/go-any-proxy && \
 	echo cGFja2FnZSBtYWluCgpjb25zdCBCVUlMRFRJTUVTVEFNUCA9IDE2NzIzOTQ4MTYKY29uc3QgQlVJTERVU0VSICAgICAgPSAiIgpjb25zdCBCVUlMREhPU1QgICAgICA9ICIiCg==|base64 -d > version.go && \
 	go get -u github.com/zdannar/flogger && \
 	go get -u github.com/namsral/flag && \
+	sed -i "s/headerXFF = fmt.Sprintf.*/headerXFF = \"\"/g" any_proxy.go && \
 	GOOS=linux go build any_proxy.go sni.go stats.go version.go
+
+RUN git clone https://git.zx2c4.com/wireguard-go && \
+    cd wireguard-go && \
+    git checkout $wg_go_tag && \
+    make && \
+    make install
+
+ENV WITH_WGQUICK=yes
+RUN git clone https://git.zx2c4.com/wireguard-tools && \
+    cd wireguard-tools && \
+    git checkout $wg_tools_tag && \
+    cd src && \
+    make && \
+    make install
+
 RUN cd /opt/ && git clone https://github.com/coredns/coredns && cd /opt/coredns && make
 
 FROM ubuntu:jammy AS final
 
-RUN DEBIAN_FRONTEND=noninteractive apt update && DEBIAN_FRONTEND=noninteractive apt install iptables supervisor netcat net-tools ulogd2 libcap2-bin -y && mkdir -p /opt/any_proxy /opt/coredns/config /scripts/init-scripts
+RUN DEBIAN_FRONTEND=noninteractive apt update && DEBIAN_FRONTEND=noninteractive apt install iptables supervisor netcat net-tools ulogd2 libcap2-bin -y && mkdir -p /opt/redirector /opt/coredns/config /scripts/init-scripts /etc/wireguard
 
-COPY --from=builder /opt/go-any-proxy/any_proxy /opt/any_proxy/
-COPY --from=builder /opt/coredns/coredns /opt/coredns/
+#Just for dev or troubleshooting
+RUN DEBIAN_FRONTEND=noninteractive apt install iproute2 iputils-ping sudo curl vim dnsutils -y
+
+COPY --from=builder /opt/go-any-proxy/any_proxy /opt/redirector/redirector
+COPY --from=builder /opt/coredns/coredns /opt/coredns
+COPY --from=builder /usr/bin/wireguard-go /usr/bin/wg* /usr/bin/
 ADD conf/supervisor/ /etc/supervisor/conf.d/
-ADD conf/iptables /opt/any_proxy/iptables
+ADD conf/iptables /opt/redirector/iptables
 ADD conf/ulogd /etc/ulogd.conf
 ADD conf/coredns/ /opt/coredns/config/
 ADD launcher.sh /scripts/launcher.sh
 
-RUN useradd anyproxy --uid 1000 && \
+RUN useradd redirector --uid 1000 && \
 	useradd coredns --uid 1001 && \
-	chown 1000.1000 -R /opt/any_proxy && \
+	chown 1000.1000 -R /opt/redirector && \
 	setcap CAP_NET_BIND_SERVICE=+eip /opt/coredns/coredns 
 
-RUN echo 'net.ipv4.ip_forward=1' >> /etc/sysctl.conf
 RUN echo 'net.ipv4.ip_forward=1\n\
 net.core.netdev_max_backlog = 2048\n\
 net.core.somaxconn = 1024\n\
@@ -42,11 +64,12 @@ net.ipv4.tcp_mem = 50576 64768 98152\n\
 net.ipv4.tcp_rmem = 4096 87380 16777216\n\
 net.ipv4.tcp_syncookies = 1\n\
 net.ipv4.tcp_wmem = 4096 65536 16777216\n\
-net.ipv4.tcp_congestion_control = cubic' >> /etc/sysctl.conf && ulimit -n 65535 && groupadd proxified
+net.ipv4.tcp_congestion_control = cubic' >> /etc/sysctl.conf && ulimit -n 65535
 
 #RUN apt clean autoclean && apt autoremove --yes && rm -rf /var/lib/{apt,dpkg,cache,log}/
 
 ADD init-scripts/ /scripts/init-scripts/
 
-HEALTHCHECK --interval=30s --timeout=5s CMD nc -vz 127.0.0.1 12345
+#HEALTHCHECK --interval=30s --timeout=5s CMD nc -vz 127.0.0.1 12345
+#HEALTHCHECK --interval=30s --timeout=5s CMD bash -c "supervisorctl status|grep redirect|grep RUNN"
 ENTRYPOINT bash /scripts/launcher.sh

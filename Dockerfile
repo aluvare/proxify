@@ -30,7 +30,7 @@ RUN cd /opt/ && git clone https://github.com/coredns/coredns && cd /opt/coredns 
 
 FROM ubuntu:jammy AS final
 
-RUN DEBIAN_FRONTEND=noninteractive apt update && DEBIAN_FRONTEND=noninteractive apt install iptables supervisor netcat net-tools ulogd2 libcap2-bin -y && mkdir -p /opt/redirector /opt/coredns/config /scripts/init-scripts /etc/wireguard
+RUN DEBIAN_FRONTEND=noninteractive apt update && DEBIAN_FRONTEND=noninteractive apt install iptables supervisor netcat tor net-tools ulogd2 libcap2-bin -y && mkdir -p /opt/redirector /opt/coredns/config /scripts/init-scripts /etc/wireguard
 
 #Just for dev or troubleshooting
 RUN DEBIAN_FRONTEND=noninteractive apt install iproute2 iputils-ping sudo curl vim dnsutils -y
@@ -42,6 +42,7 @@ ADD conf/supervisor/ /etc/supervisor/conf.d/
 ADD conf/iptables /opt/redirector/iptables
 ADD conf/ulogd /etc/ulogd.conf
 ADD conf/coredns/ /opt/coredns/config/
+ADD conf/torrc /opt/redirector/torrc
 ADD launcher.sh /scripts/launcher.sh
 
 RUN useradd redirector --uid 1000 && \

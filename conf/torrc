@@ -1,0 +1,5 @@
+VirtualAddrNetworkIPv4 10.192.0.0/10
+AutomapHostsOnResolve 1
+DNSPort 127.0.0.1:5353
+RunAsDaemon 0
+DataDirectory /opt/redirector
